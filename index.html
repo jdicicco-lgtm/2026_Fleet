@@ -291,12 +291,28 @@ function resetFilters(){
   updateDashboard();
 }
 
-function isActiveInMonth(vehicle,monthIndex){
-  const start=new Date(vehicle.date_in);
-  const end=vehicle.date_out?new Date(vehicle.date_out):new Date("2026-12-31");
-  const monthStart=new Date(2026,monthIndex,1);
-  const monthEnd=new Date(2026,monthIndex+1,0);
-  return start<=monthEnd && end>=monthStart;
+function isActiveInMonth(vehicle, monthIndex){
+
+  if(!vehicle.date_in) return false;
+
+  const start = new Date(vehicle.date_in);
+  const end = vehicle.date_out 
+    ? new Date(vehicle.date_out)
+    : new Date("2026-12-31");
+
+  // 🔹 Limiti anno 2026
+  const yearStart = new Date("2026-01-01");
+  const yearEnd   = new Date("2026-12-31");
+
+  // 🔹 Se il veicolo NON tocca il 2026 → escludi
+  if (start > yearEnd) return false;
+  if (end < yearStart) return false;
+
+  // 🔹 Limiti mese
+  const monthStart = new Date(2026, monthIndex, 1);
+  const monthEnd   = new Date(2026, monthIndex+1, 0);
+
+  return start <= monthEnd && end >= monthStart;
 }
 
 function updateDashboard(){
@@ -306,8 +322,22 @@ function updateDashboard(){
   const selectedProvider=getSelectedValues("providerFilter");
   const selectedMacro=getSelectedValues("macroFilter");
 
-  let enriched=fleetData.map(f=>({...f,macro:getMacroGroup(f.carline)}));
+  const yearStart = new Date("2026-01-01");
+const yearEnd   = new Date("2026-12-31");
 
+let enriched = fleetData
+  .map(f => ({ ...f, macro:getMacroGroup(f.carline) }))
+  .filter(f => {
+
+    if(!f.date_in) return false;
+
+    const start = new Date(f.date_in);
+    const end = f.date_out 
+      ? new Date(f.date_out)
+      : yearEnd;
+
+    return start <= yearEnd && end >= yearStart;
+  });
   let filtered=enriched.filter(f=>{
     return (selectedCarline.length===0||selectedCarline.includes(f.carline))
       && (selectedProvider.length===0||selectedProvider.includes(f.provider))
