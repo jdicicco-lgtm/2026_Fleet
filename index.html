@@ -9,7 +9,7 @@
 body {
   font-family: 'Segoe UI', Arial;
   margin: 40px;
-  background:#f5f7fa;
+  background:#f4f6f9;
 }
 
 h1 { margin-bottom:30px; }
@@ -17,26 +17,27 @@ h1 { margin-bottom:30px; }
 .filters {
   background:white;
   padding:20px;
-  border-radius:12px;
-  box-shadow:0 2px 8px rgba(0,0,0,0.05);
+  border-radius:14px;
+  box-shadow:0 3px 12px rgba(0,0,0,0.06);
   display:flex;
-  gap:20px;
+  gap:25px;
   flex-wrap:wrap;
   align-items:flex-end;
 }
 
 select {
-  min-width:160px;
+  min-width:170px;
   padding:6px;
 }
 
 button {
-  padding:8px 14px;
+  padding:9px 16px;
   border:none;
-  border-radius:6px;
-  background:#2c7be5;
+  border-radius:8px;
+  background:#2563eb;
   color:white;
   cursor:pointer;
+  font-weight:500;
 }
 
 button:hover { opacity:0.9; }
@@ -50,27 +51,27 @@ button:hover { opacity:0.9; }
 
 .card {
   background:white;
-  padding:20px;
-  border-radius:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,0.05);
+  padding:22px;
+  border-radius:14px;
+  box-shadow:0 3px 12px rgba(0,0,0,0.05);
 }
 
 .card-title {
-  font-size:14px;
-  color:#6c757d;
+  font-size:13px;
+  color:#6b7280;
 }
 
 .card-value {
-  font-size:28px;
-  font-weight:bold;
+  font-size:30px;
+  font-weight:600;
   margin-top:8px;
 }
 
 canvas {
   background:white;
   padding:20px;
-  border-radius:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,0.05);
+  border-radius:14px;
+  box-shadow:0 3px 12px rgba(0,0,0,0.05);
 }
 
 table {
@@ -78,20 +79,21 @@ table {
   width:100%;
   border-collapse:collapse;
   background:white;
-  border-radius:12px;
+  border-radius:14px;
   overflow:hidden;
+  box-shadow:0 3px 12px rgba(0,0,0,0.05);
 }
 
 th, td {
-  padding:10px;
+  padding:11px;
   text-align:center;
 }
 
 th {
-  background:#f1f3f5;
+  background:#eef2f7;
 }
 
-tr:nth-child(even) { background:#f9fbfd; }
+tr:nth-child(even) { background:#f9fafc; }
 
 </style>
 </head>
@@ -101,6 +103,7 @@ tr:nth-child(even) { background:#f9fbfd; }
 <h1>Dashboard Flotta 2026</h1>
 
 <div class="filters">
+
   <div>
     <label>Mesi</label><br>
     <select id="monthFilter" multiple size="4"></select>
@@ -117,8 +120,14 @@ tr:nth-child(even) { background:#f9fbfd; }
   </div>
 
   <div>
+    <label>Macro Gruppo</label><br>
+    <select id="macroFilter" multiple size="4"></select>
+  </div>
+
+  <div>
     <button onclick="resetFilters()">Reset Filtri</button>
   </div>
+
 </div>
 
 <div class="kpi-container">
@@ -141,16 +150,22 @@ tr:nth-child(even) { background:#f9fbfd; }
     <div class="card-title">Flotta Media Mensile</div>
     <div class="card-value" id="avgFleet">0</div>
   </div>
+
+  <div class="card">
+    <div class="card-title">% Premium Fleet</div>
+    <div class="card-value" id="premiumShare">0%</div>
+  </div>
 </div>
 
 <canvas id="fleetChart"></canvas>
 
-<h2>Dettaglio Carline</h2>
+<h2>Distribuzione Carline</h2>
 <table>
 <thead>
 <tr>
 <th>Carline</th>
 <th>Totale Veicoli</th>
+<th>Macro Gruppo</th>
 </tr>
 </thead>
 <tbody id="carlineTable"></tbody>
@@ -174,24 +189,74 @@ fetch('fleet.json')
   updateDashboard();
 });
 
+function getMacroGroup(carline){
+
+  const name = carline ? carline.toLowerCase() : "";
+
+  const premiumBrands = [
+    "audi","bmw","mercedes","volvo","lexus",
+    "tesla","porsche","jaguar","land rover",
+    "alfa","ds"
+  ];
+
+  if(premiumBrands.some(b=>name.includes(b)))
+    return "Premium";
+
+  if(name.includes("van") || name.includes("transit") || name.includes("doblo"))
+    return "Commercial Van";
+
+  if(name.includes("9 posti") || name.includes("people"))
+    return "People Mover";
+
+  if(name.includes("cabrio"))
+    return "Cabriolet";
+
+  if(name.includes("sw") || name.includes("station"))
+    return "Station Wagon";
+
+  if(name.includes("suv") || name.includes("x") || name.includes("qashqai") || name.includes("tucson"))
+    return "SUV";
+
+  if(name.includes("passat") || name.includes("superb"))
+    return "Large";
+
+  if(name.includes("clio") || name.includes("208") || name.includes("polo"))
+    return "Small";
+
+  if(name.includes("panda") || name.includes("500") || name.includes("mini"))
+    return "Mini";
+
+  return "Economy";
+}
+
 function initFilters(){
 
-  const monthSel=document.getElementById("monthFilter");
   months2026.forEach((m,i)=>{
-    monthSel.innerHTML+=`<option value="${i}">${m}</option>`;
+    document.getElementById("monthFilter")
+      .innerHTML+=`<option value="${i}">${m}</option>`;
   });
 
-  const carlines=[...new Set(fleetData.map(f=>f.carline))];
-  const providers=[...new Set(fleetData.map(f=>f.provider))];
-
-  carlines.forEach(c=>{
-    document.getElementById("carlineFilter")
-      .innerHTML+=`<option value="${c}">${c}</option>`;
+  [...new Set(fleetData.map(f=>f.carline))]
+    .forEach(c=>{
+      document.getElementById("carlineFilter")
+        .innerHTML+=`<option value="${c}">${c}</option>`;
   });
 
-  providers.forEach(p=>{
-    document.getElementById("providerFilter")
-      .innerHTML+=`<option value="${p}">${p}</option>`;
+  [...new Set(fleetData.map(f=>f.provider))]
+    .forEach(p=>{
+      document.getElementById("providerFilter")
+        .innerHTML+=`<option value="${p}">${p}</option>`;
+  });
+
+  const macros=[
+    "Mini","Small","Economy","Large",
+    "SUV","Premium","Station Wagon",
+    "Cabriolet","People Mover","Commercial Van"
+  ];
+
+  macros.forEach(m=>{
+    document.getElementById("macroFilter")
+      .innerHTML+=`<option value="${m}">${m}</option>`;
   });
 
   document.querySelectorAll("select")
@@ -200,17 +265,19 @@ function initFilters(){
 
 function getSelectedValues(id){
   return [...document.getElementById(id).selectedOptions]
-         .map(o=>o.value);
+    .map(o=>o.value);
 }
 
 function resetFilters(){
-  document.querySelectorAll("select").forEach(s=>{
-    [...s.options].forEach(o=>o.selected=false);
-  });
+  document.querySelectorAll("select")
+    .forEach(s=>[...s.options].forEach(o=>o.selected=false));
   updateDashboard();
 }
 
 function isActiveInMonth(vehicle, monthIndex){
+
+  if(!vehicle.date_in) return false;
+
   const start=new Date(vehicle.date_in);
   const end=vehicle.date_out
     ? new Date(vehicle.date_out)
@@ -221,68 +288,21 @@ function isActiveInMonth(vehicle, monthIndex){
 
   return start<=monthEnd && end>=monthStart;
 }
-function getMacroGroup(carline) {
 
-  const name = carline.toLowerCase();
-
-  // 🔹 PREMIUM (priorità alta)
-  const premiumBrands = [
-    "audi","bmw","mercedes","volvo","lexus",
-    "tesla","porsche","jaguar","land rover",
-    "alfa","ds"
-  ];
-
-  if (premiumBrands.some(b => name.includes(b)))
-    return "Premium";
-
-  // 🔹 COMMERCIAL
-  if (name.includes("van") || name.includes("transit") || name.includes("doblo"))
-    return "Commercial Van";
-
-  // 🔹 PEOPLE MOVER
-  if (name.includes("9 posti") || name.includes("people"))
-    return "People Mover";
-
-  // 🔹 CABRIO
-  if (name.includes("cabrio"))
-    return "Cabriolet";
-
-  // 🔹 STATION WAGON
-  if (name.includes("sw") || name.includes("station"))
-    return "Station Wagon";
-
-  // 🔹 SUV
-  if (name.includes("suv") || name.includes("x") || name.includes("qashqai") || name.includes("tucson"))
-    return "SUV";
-
-  // 🔹 LARGE
-  if (name.includes("passat") || name.includes("superb") || name.includes("large"))
-    return "Large";
-
-  // 🔹 ECONOMY
-  if (name.includes("economy"))
-    return "Economy";
-
-  // 🔹 SMALL
-  if (name.includes("clio") || name.includes("208") || name.includes("polo"))
-    return "Small";
-
-  // 🔹 MINI
-  if (name.includes("panda") || name.includes("500") || name.includes("mini"))
-    return "Mini";
-
-  return "Economy"; // fallback
-}
 function updateDashboard(){
 
   const selectedMonths=getSelectedValues("monthFilter").map(Number);
   const selectedCarline=getSelectedValues("carlineFilter");
   const selectedProvider=getSelectedValues("providerFilter");
+  const selectedMacro=getSelectedValues("macroFilter");
 
-  let filtered=fleetData.filter(f=>{
-    return (selectedCarline.length===0 || selectedCarline.includes(f.carline))
-      && (selectedProvider.length===0 || selectedProvider.includes(f.provider));
-  });
+  let filtered=fleetData
+    .map(f=>({...f, macro:getMacroGroup(f.carline)}))
+    .filter(f=>{
+      return (selectedCarline.length===0 || selectedCarline.includes(f.carline))
+        && (selectedProvider.length===0 || selectedProvider.includes(f.provider))
+        && (selectedMacro.length===0 || selectedMacro.includes(f.macro));
+    });
 
   document.getElementById("totalFleet").innerText=filtered.length;
   document.getElementById("totalProviders").innerText=
@@ -290,30 +310,29 @@ function updateDashboard(){
   document.getElementById("totalCarline").innerText=
     new Set(filtered.map(f=>f.carline)).size;
 
-  let monthlyCounts=months2026.map((_,i)=>{
-    return filtered.filter(f=>isActiveInMonth(f,i)).length;
-  });
+  let monthlyCounts=months2026.map((_,i)=>
+    filtered.filter(f=>isActiveInMonth(f,i)).length
+  );
 
-  let filteredMonthly=selectedMonths.length>0
-    ? monthlyCounts.filter((_,i)=>selectedMonths.includes(i))
-    : monthlyCounts;
-
-  let labels=selectedMonths.length>0
-    ? selectedMonths.map(i=>months2026[i])
-    : months2026;
-
-  let avg = (monthlyCounts.reduce((a,b)=>a+b,0)/12).toFixed(1);
+  let avg=(monthlyCounts.reduce((a,b)=>a+b,0)/12).toFixed(1);
   document.getElementById("avgFleet").innerText=avg;
+
+  let premiumCount=filtered.filter(f=>f.macro==="Premium").length;
+  let premiumShare=filtered.length>0
+    ? ((premiumCount/filtered.length)*100).toFixed(1)
+    : 0;
+
+  document.getElementById("premiumShare").innerText=premiumShare+"%";
 
   if(chart) chart.destroy();
 
   chart=new Chart(document.getElementById("fleetChart"),{
     type:'line',
     data:{
-      labels:labels,
+      labels:months2026,
       datasets:[{
         label:'Flotta Attiva 2026',
-        data:filteredMonthly,
+        data:monthlyCounts,
         borderWidth:3,
         tension:0.3,
         fill:true
@@ -321,12 +340,8 @@ function updateDashboard(){
     },
     options:{
       responsive:true,
-      plugins:{
-        legend:{ display:false }
-      },
-      scales:{
-        y:{ beginAtZero:true }
-      }
+      plugins:{ legend:{ display:false }},
+      scales:{ y:{ beginAtZero:true }}
     }
   });
 
@@ -341,10 +356,12 @@ function updateDashboard(){
   Object.entries(counts)
     .sort((a,b)=>b[1]-a[1])
     .forEach(([carline,count])=>{
+      const macro=getMacroGroup(carline);
       tbody.innerHTML+=`
       <tr>
         <td>${carline}</td>
         <td>${count}</td>
+        <td>${macro}</td>
       </tr>`;
   });
 }
