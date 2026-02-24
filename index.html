@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Flotta 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { font-family: Arial; margin: 40px; }
+.filters { margin-bottom: 20px; display:flex; gap:20px; flex-wrap:wrap; }
+select, input { padding:5px; }
+.kpi-container { display:flex; gap:40px; margin:30px 0; }
+.kpi { font-size:20px; font-weight:bold; }
+table { border-collapse: collapse; width:100%; margin-top:40px; }
+th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+th { background:#f4f4f4; }
+.upload-box { margin-bottom:30px; padding:15px; border:1px dashed #aaa; }
+</style>
+</head>
+<body>
+
+<h1>Dashboard Flotta 2026</h1>
+
+<div class="upload-box">
+  <strong>Carica CSV aggiornato:</strong>
+  <input type="file" id="csvFile" accept=".csv">
+</div>
+
+<div class="filters">
+  <div>
+    <label>Mese:</label>
+    <select id="monthFilter">
+      <option value="all">Tutti</option>
+    </select>
+  </div>
+
+  <div>
+    <label>Carline:</label>
+    <select id="carlineFilter">
+      <option value="all">Tutte</option>
+    </select>
+  </div>
+
+  <div>
+    <label>Provider:</label>
+    <select id="providerFilter">
+      <option value="all">Tutti</option>
+    </select>
+  </div>
+</div>
+
+<div class="kpi-container">
+  <div class="kpi" id="totalFleet">Flotta Totale: 0</div>
+  <div class="kpi" id="totalProviders">Provider: 0</div>
+  <div class="kpi" id="totalCarline">Carline: 0</div>
+</div>
+
+<canvas id="fleetChart"></canvas>
+
+<h2>Dettaglio Carline</h2>
+<table id="carlineTable">
+<thead>
+<tr>
+<th>Carline</th>
+<th>Totale Veicoli</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<script>
+
+let fleetData = [];
+let chart;
+
+const months2026 = [
+  "Gen","Feb","Mar","Apr","Mag","Giu",
+  "Lug","Ago","Set","Ott","Nov","Dic"
+];
+
+// 📌 Upload CSV
+document.getElementById('csvFile').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(event){
+    const text = event.target.result;
+    fleetData = parseCSV(text);
+    initFilters();
+    updateDashboard();
+  };
+
+  reader.readAsText(file);
+});
+
+// 📌 Parse CSV
+function parseCSV(text){
+  const rows = text.split('\n').map(r=>r.split(','));
+  const headers = rows[0];
+
+  return rows.slice(1).filter(r=>r.length>1).map(row=>{
+    let obj = {};
+    headers.forEach((h,i)=>{
+      obj[h.trim()] = row[i]?.trim();
+    });
+
+    return {
+      provider: obj["provider"],
+      carline: obj["category"],
+      location: obj["Location"],
+      date_in: obj["Date In"],
+      date_out: obj["Date Out"]
+    };
+  });
+}
+
+// 📌 Init filtri
+function initFilters(){
+
+  const monthSelect = document.getElementById("monthFilter");
+  monthSelect.innerHTML = '<option value="all">Tutti</option>';
+
+  months2026.forEach((m,i)=>{
+    let opt = document.createElement("option");
+    opt.value = i;
+    opt.text = m;
+    monthSelect.appendChild(opt);
+  });
+
+  const carlineSelect = document.getElementById("carlineFilter");
+  const providerSelect = document.getElementById("providerFilter");
+
+  carlineSelect.innerHTML = '<option value="all">Tutte</option>';
+  providerSelect.innerHTML = '<option value="all">Tutti</option>';
+
+  [...new Set(fleetData.map(f=>f.carline))].forEach(c=>{
+    let opt=document.createElement("option");
+    opt.value=c; opt.text=c;
+    carlineSelect.appendChild(opt);
+  });
+
+  [...new Set(fleetData.map(f=>f.provider))].forEach(p=>{
+    let opt=document.createElement("option");
+    opt.value=p; opt.text=p;
+    providerSelect.appendChild(opt);
+  });
+
+  document.querySelectorAll("select").forEach(s=>{
+    s.addEventListener("change", updateDashboard);
+  });
+}
+
+// 📌 Controllo veicolo attivo nel mese
+function isActiveInMonth(vehicle, monthIndex){
+  const start = new Date(vehicle.date_in);
+  const end = vehicle.date_out ? new Date(vehicle.date_out) : new Date("2026-12-31");
+
+  const monthStart = new Date(2026, monthIndex, 1);
+  const monthEnd = new Date(2026, monthIndex+1, 0);
+
+  return start <= monthEnd && end >= monthStart;
+}
+
+// 📌 Update Dashboard
+function updateDashboard(){
+
+  const selectedCarline = document.getElementById("carlineFilter").value;
+  const selectedProvider = document.getElementById("providerFilter").value;
+
+  let filtered = fleetData.filter(f=>{
+    return (selectedCarline==="all" || f.carline===selectedCarline)
+      && (selectedProvider==="all" || f.provider===selectedProvider);
+  });
+
+  // KPI
+  document.getElementById("totalFleet").innerText =
+    "Flotta Totale: "+filtered.length;
+
+  document.getElementById("totalProviders").innerText =
+    "Provider: "+new Set(filtered.map(f=>f.provider)).size;
+
+  document.getElementById("totalCarline").innerText =
+    "Carline: "+new Set(filtered.map(f=>f.carline)).size;
+
+  // Line chart
+  let monthlyCounts = months2026.map((_,i)=>{
+    return filtered.filter(f=>isActiveInMonth(f,i)).length;
+  });
+
+  if(chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("fleetChart"),{
+    type:'line',
+    data:{
+      labels:months2026,
+      datasets:[{
+        label:'Flotta Attiva 2026',
+        data:monthlyCounts,
+        borderWidth:2,
+        tension:0.3
+      }]
+    }
+  });
+
+  // Tabella carline
+  const tbody=document.querySelector("#carlineTable tbody");
+  tbody.innerHTML="";
+
+  const counts={};
+  filtered.forEach(f=>{
+    counts[f.carline]=(counts[f.carline]||0)+1;
+  });
+
+  Object.entries(counts).forEach(([carline,count])=>{
+    tbody.innerHTML+=`<tr>
+      <td>${carline}</td>
+      <td>${count}</td>
+    </tr>`;
+  });
+}
+
+</script>
+
+</body>
+</html>
