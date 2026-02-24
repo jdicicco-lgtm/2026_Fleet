@@ -7,23 +7,17 @@
 <style>
 body { font-family: Arial; margin: 40px; }
 .filters { margin-bottom: 20px; display:flex; gap:20px; flex-wrap:wrap; }
-select, input { padding:5px; }
+select { padding:5px; }
 .kpi-container { display:flex; gap:40px; margin:30px 0; }
 .kpi { font-size:20px; font-weight:bold; }
 table { border-collapse: collapse; width:100%; margin-top:40px; }
 th, td { border:1px solid #ddd; padding:8px; text-align:center; }
 th { background:#f4f4f4; }
-.upload-box { margin-bottom:30px; padding:15px; border:1px dashed #aaa; }
 </style>
 </head>
 <body>
 
 <h1>Dashboard Flotta 2026</h1>
-
-<div class="upload-box">
-  <strong>Carica CSV aggiornato:</strong>
-  <input type="file" id="csvFile" accept=".csv">
-</div>
 
 <div class="filters">
   <div>
@@ -77,60 +71,26 @@ const months2026 = [
   "Lug","Ago","Set","Ott","Nov","Dic"
 ];
 
-// 📌 Upload CSV
-document.getElementById('csvFile').addEventListener('change', function(e){
-  const file = e.target.files[0];
-  const reader = new FileReader();
-
-  reader.onload = function(event){
-    const text = event.target.result;
-    fleetData = parseCSV(text);
+// 🔹 Load JSON
+fetch('fleet.json')
+  .then(res => res.json())
+  .then(data => {
+    fleetData = data;
     initFilters();
     updateDashboard();
-  };
-
-  reader.readAsText(file);
-});
-
-// 📌 Parse CSV
-function parseCSV(text){
-  const rows = text.split('\n').map(r=>r.split(','));
-  const headers = rows[0];
-
-  return rows.slice(1).filter(r=>r.length>1).map(row=>{
-    let obj = {};
-    headers.forEach((h,i)=>{
-      obj[h.trim()] = row[i]?.trim();
-    });
-
-    return {
-      provider: obj["provider"],
-      carline: obj["category"],
-      location: obj["Location"],
-      date_in: obj["Date In"],
-      date_out: obj["Date Out"]
-    };
   });
-}
 
-// 📌 Init filtri
 function initFilters(){
 
   const monthSelect = document.getElementById("monthFilter");
-  monthSelect.innerHTML = '<option value="all">Tutti</option>';
-
   months2026.forEach((m,i)=>{
-    let opt = document.createElement("option");
-    opt.value = i;
-    opt.text = m;
+    let opt=document.createElement("option");
+    opt.value=i; opt.text=m;
     monthSelect.appendChild(opt);
   });
 
-  const carlineSelect = document.getElementById("carlineFilter");
-  const providerSelect = document.getElementById("providerFilter");
-
-  carlineSelect.innerHTML = '<option value="all">Tutte</option>';
-  providerSelect.innerHTML = '<option value="all">Tutti</option>';
+  const carlineSelect=document.getElementById("carlineFilter");
+  const providerSelect=document.getElementById("providerFilter");
 
   [...new Set(fleetData.map(f=>f.carline))].forEach(c=>{
     let opt=document.createElement("option");
@@ -149,8 +109,10 @@ function initFilters(){
   });
 }
 
-// 📌 Controllo veicolo attivo nel mese
 function isActiveInMonth(vehicle, monthIndex){
+
+  if(!vehicle.date_in) return false;
+
   const start = new Date(vehicle.date_in);
   const end = vehicle.date_out ? new Date(vehicle.date_out) : new Date("2026-12-31");
 
@@ -160,18 +122,18 @@ function isActiveInMonth(vehicle, monthIndex){
   return start <= monthEnd && end >= monthStart;
 }
 
-// 📌 Update Dashboard
 function updateDashboard(){
 
-  const selectedCarline = document.getElementById("carlineFilter").value;
-  const selectedProvider = document.getElementById("providerFilter").value;
+  const selectedMonth=document.getElementById("monthFilter").value;
+  const selectedCarline=document.getElementById("carlineFilter").value;
+  const selectedProvider=document.getElementById("providerFilter").value;
 
-  let filtered = fleetData.filter(f=>{
-    return (selectedCarline==="all" || f.carline===selectedCarline)
-      && (selectedProvider==="all" || f.provider===selectedProvider);
+  let filtered=fleetData.filter(f=>{
+    return (selectedCarline==="all"||f.carline===selectedCarline)
+      && (selectedProvider==="all"||f.provider===selectedProvider);
   });
 
-  // KPI
+  // KPI corretti
   document.getElementById("totalFleet").innerText =
     "Flotta Totale: "+filtered.length;
 
@@ -181,14 +143,14 @@ function updateDashboard(){
   document.getElementById("totalCarline").innerText =
     "Carline: "+new Set(filtered.map(f=>f.carline)).size;
 
-  // Line chart
-  let monthlyCounts = months2026.map((_,i)=>{
+  // Grafico
+  let monthlyCounts=months2026.map((_,i)=>{
     return filtered.filter(f=>isActiveInMonth(f,i)).length;
   });
 
   if(chart) chart.destroy();
 
-  chart = new Chart(document.getElementById("fleetChart"),{
+  chart=new Chart(document.getElementById("fleetChart"),{
     type:'line',
     data:{
       labels:months2026,
@@ -198,10 +160,16 @@ function updateDashboard(){
         borderWidth:2,
         tension:0.3
       }]
+    },
+    options:{
+      responsive:true,
+      scales:{
+        y:{ beginAtZero:true }
+      }
     }
   });
 
-  // Tabella carline
+  // Tabella
   const tbody=document.querySelector("#carlineTable tbody");
   tbody.innerHTML="";
 
@@ -211,10 +179,11 @@ function updateDashboard(){
   });
 
   Object.entries(counts).forEach(([carline,count])=>{
-    tbody.innerHTML+=`<tr>
-      <td>${carline}</td>
-      <td>${count}</td>
-    </tr>`;
+    tbody.innerHTML+=`
+      <tr>
+        <td>${carline}</td>
+        <td>${count}</td>
+      </tr>`;
   });
 }
 
