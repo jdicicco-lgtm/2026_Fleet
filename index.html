@@ -328,30 +328,38 @@ function resetFilters(){
   updateDashboard();
 }
 
+function parseDate(dateString){
+  if(!dateString) return null;
+
+  const parts = dateString.split("-");
+  return new Date(
+    Number(parts[0]),
+    Number(parts[1]) - 1,
+    Number(parts[2])
+  );
+}
+
 function isActiveInMonth(vehicle, monthIndex){
 
   if(!vehicle.date_in) return false;
 
-  const start = new Date(vehicle.date_in);
+  const start = parseDate(vehicle.date_in);
   const end = vehicle.date_out 
-    ? new Date(vehicle.date_out)
-    : new Date("2026-12-31");
+    ? parseDate(vehicle.date_out)
+    : new Date(2026,11,31);
 
-  // 🔹 Limiti anno 2026
-  const yearStart = new Date("2026-01-01");
-  const yearEnd   = new Date("2026-12-31");
+  const yearStart = new Date(2026,0,1);
+  const yearEnd   = new Date(2026,11,31);
 
-  // 🔹 Se il veicolo NON tocca il 2026 → escludi
-  if (start > yearEnd) return false;
-  if (end < yearStart) return false;
+  // 🔹 fuori dal 2026 → escludi
+  if(start > yearEnd) return false;
+  if(end < yearStart) return false;
 
-  // 🔹 Limiti mese
   const monthStart = new Date(2026, monthIndex, 1);
   const monthEnd   = new Date(2026, monthIndex+1, 0);
 
   return start <= monthEnd && end >= monthStart;
 }
-
 function updateDashboard(){
 
   const selectedMonths=getSelectedValues("monthFilter").map(Number);
