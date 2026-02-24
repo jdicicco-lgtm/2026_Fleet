@@ -330,6 +330,9 @@ function resetFilters(){
 
 function parseDate(dateString){
   if(!dateString) return null;
+  const [y,m,d] = dateString.split("-").map(Number);
+  return new Date(y, m-1, d);
+}
 
   const parts = dateString.split("-");
   return new Date(
@@ -367,8 +370,8 @@ function updateDashboard(){
   const selectedProvider=getSelectedValues("providerFilter");
   const selectedMacro=getSelectedValues("macroFilter");
 
-  const yearStart = new Date("2026-01-01");
-const yearEnd   = new Date("2026-12-31");
+  const yearStart = new Date(2026,0,1);
+const yearEnd   = new Date(2026,11,31);
 
 let enriched = fleetData
   .map(f => ({ ...f, macro:getMacroGroup(f.carline) }))
@@ -376,10 +379,8 @@ let enriched = fleetData
 
     if(!f.date_in) return false;
 
-    const start = new Date(f.date_in);
-    const end = f.date_out 
-      ? new Date(f.date_out)
-      : yearEnd;
+    const start = parseDate(f.date_in);
+    const end   = f.date_out ? parseDate(f.date_out) : yearEnd;
 
     return start <= yearEnd && end >= yearStart;
   });
