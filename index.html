@@ -221,7 +221,58 @@ function isActiveInMonth(vehicle, monthIndex){
 
   return start<=monthEnd && end>=monthStart;
 }
+function getMacroGroup(carline) {
 
+  const name = carline.toLowerCase();
+
+  // 🔹 PREMIUM (priorità alta)
+  const premiumBrands = [
+    "audi","bmw","mercedes","volvo","lexus",
+    "tesla","porsche","jaguar","land rover",
+    "alfa","ds"
+  ];
+
+  if (premiumBrands.some(b => name.includes(b)))
+    return "Premium";
+
+  // 🔹 COMMERCIAL
+  if (name.includes("van") || name.includes("transit") || name.includes("doblo"))
+    return "Commercial Van";
+
+  // 🔹 PEOPLE MOVER
+  if (name.includes("9 posti") || name.includes("people"))
+    return "People Mover";
+
+  // 🔹 CABRIO
+  if (name.includes("cabrio"))
+    return "Cabriolet";
+
+  // 🔹 STATION WAGON
+  if (name.includes("sw") || name.includes("station"))
+    return "Station Wagon";
+
+  // 🔹 SUV
+  if (name.includes("suv") || name.includes("x") || name.includes("qashqai") || name.includes("tucson"))
+    return "SUV";
+
+  // 🔹 LARGE
+  if (name.includes("passat") || name.includes("superb") || name.includes("large"))
+    return "Large";
+
+  // 🔹 ECONOMY
+  if (name.includes("economy"))
+    return "Economy";
+
+  // 🔹 SMALL
+  if (name.includes("clio") || name.includes("208") || name.includes("polo"))
+    return "Small";
+
+  // 🔹 MINI
+  if (name.includes("panda") || name.includes("500") || name.includes("mini"))
+    return "Mini";
+
+  return "Economy"; // fallback
+}
 function updateDashboard(){
 
   const selectedMonths=getSelectedValues("monthFilter").map(Number);
