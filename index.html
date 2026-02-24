@@ -284,14 +284,24 @@ function resetFilters(){
   updateDashboard();
 }
 
-function isActiveInMonth(vehicle,monthIndex){
-  const start=parseDate(vehicle.date_in);
-  const end=vehicle.date_out?parseDate(vehicle.date_out):new Date(2026,11,31);
+function isActiveInMonth(vehicle, monthIndex){
 
-  const monthStart=new Date(2026,monthIndex,1);
-  const monthEnd=new Date(2026,monthIndex+1,0);
+  const start = parseDate(vehicle.date_in);
+  const end   = vehicle.date_out
+    ? parseDate(vehicle.date_out)
+    : new Date(2026,11,31);
 
-  return start<=monthEnd && end>=monthStart;
+  if(!start) return false;
+
+  const monthStart = new Date(2026, monthIndex, 1);
+  const monthEnd   = new Date(2026, monthIndex+1, 0);
+
+  // 🔹 Calcolo intersezione reale
+  const effectiveStart = start > monthStart ? start : monthStart;
+  const effectiveEnd   = end   < monthEnd   ? end   : monthEnd;
+
+  // Se c'è almeno 1 giorno di sovrapposizione
+  return effectiveStart <= effectiveEnd;
 }
 
 function updateDashboard(){
@@ -304,15 +314,30 @@ function updateDashboard(){
   const yearStart=new Date(2026,0,1);
   const yearEnd=new Date(2026,11,31);
 
-  let enriched=fleetData
-    .map(f=>({...f,macro:getMacroGroup(f.carline)}))
-    .filter(f=>{
-      if(!f.date_in) return false;
-      const start=parseDate(f.date_in);
-      const end=f.date_out?parseDate(f.date_out):yearEnd;
-      return start<=yearEnd && end>=yearStart;
-    });
+  let enriched = fleetData
+  .map(f => ({ ...f, macro:getMacroGroup(f.carline) }))
+  .filter(f => {
 
+    if(!f.date_in) return false;
+
+    const start = parseDate(f.date_in);
+    const end   = f.date_out
+      ? parseDate(f.date_out)
+      : new Date(2026,11,31);
+
+    if(!start || !end) return false;
+
+    // Intersezione con anno 2026
+    const effectiveStart = start > new Date(2026,0,1)
+      ? start
+      : new Date(2026,0,1);
+
+    const effectiveEnd = end < new Date(2026,11,31)
+      ? end
+      : new Date(2026,11,31);
+
+    return effectiveStart <= effectiveEnd;
+  });
   let filtered=enriched.filter(f=>{
     return (selectedCarline.length===0||selectedCarline.includes(f.carline))
       && (selectedProvider.length===0||selectedProvider.includes(f.provider))
