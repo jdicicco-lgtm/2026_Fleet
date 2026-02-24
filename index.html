@@ -28,28 +28,25 @@ body{
   padding:0 40px;
 }
 
-h1{
-  font-size:28px;
-  font-weight:600;
-  margin-bottom:40px;
+h1{margin-bottom:30px;}
+
+.upload-box{
+  background:var(--card);
+  padding:20px;
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  margin-bottom:30px;
 }
 
 .filters{
   background:var(--card);
   padding:24px;
-  border-radius:18px;
+  border-radius:16px;
   box-shadow:var(--shadow);
   display:flex;
   flex-wrap:wrap;
   gap:30px;
   align-items:flex-end;
-}
-
-.filters label{
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:.05em;
-  color:var(--muted);
 }
 
 select{
@@ -85,7 +82,6 @@ button{
 .card-title{
   font-size:12px;
   text-transform:uppercase;
-  letter-spacing:.05em;
   color:var(--muted);
 }
 
@@ -108,9 +104,7 @@ button{
   margin:auto;
 }
 
-canvas{
-  height:340px !important;
-}
+canvas{height:340px !important;}
 
 .table-wrapper{
   background:var(--card);
@@ -119,28 +113,6 @@ canvas{
   border-radius:22px;
   box-shadow:var(--shadow);
 }
-
-table{
-  width:100%;
-  border-collapse:collapse;
-}
-
-th,td{
-  padding:14px;
-  font-size:14px;
-  text-align:left;
-}
-
-th{
-  font-size:11px;
-  text-transform:uppercase;
-  letter-spacing:.05em;
-  color:var(--muted);
-}
-
-tr:not(:last-child){
-  border-bottom:1px solid #f0f2f5;
-}
 </style>
 </head>
 
@@ -148,6 +120,11 @@ tr:not(:last-child){
 <div class="container">
 
 <h1>Dashboard Flotta 2026</h1>
+
+<div class="upload-box">
+  <strong>Carica CSV Flotta:</strong>
+  <input type="file" id="csvUpload" accept=".csv">
+</div>
 
 <div class="filters">
   <div>
@@ -196,20 +173,6 @@ tr:not(:last-child){
   </div>
 </div>
 
-<div class="table-wrapper">
-  <h3>Distribuzione Carline</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Carline</th>
-        <th>Totale</th>
-        <th>Macro Gruppo</th>
-      </tr>
-    </thead>
-    <tbody id="carlineTable"></tbody>
-  </table>
-</div>
-
 </div>
 
 <script>
@@ -225,22 +188,40 @@ const macroMap={
   "group c":"Economy",
   "group d":"Large",
   "group e":"Premium",
-  "group f":"Premium",
   "group j":"SUV",
   "group m":"Commercial Van"
 };
 
-fetch('fleet.json')
-.then(res=>res.json())
-.then(data=>{
-  fleetData=data;
-  initFilters();
-  updateDashboard();
+// CSV Upload
+document.getElementById("csvUpload").addEventListener("change",function(e){
+  const file=e.target.files[0];
+  const reader=new FileReader();
+
+  reader.onload=function(event){
+    const text=event.target.result;
+    fleetData=parseCSV(text);
+    initFilters();
+    updateDashboard();
+  };
+
+  reader.readAsText(file);
 });
 
-function parseDate(dateString){
-  if(!dateString) return null;
-  const [y,m,d]=dateString.split("-").map(Number);
+// CSV Parser
+function parseCSV(text){
+  const rows=text.trim().split("\n").map(r=>r.split(","));
+  const headers=rows[0].map(h=>h.trim());
+
+  return rows.slice(1).map(r=>{
+    let obj={};
+    headers.forEach((h,i)=>obj[h]=r[i]?.trim());
+    return obj;
+  });
+}
+
+function parseDate(str){
+  if(!str) return null;
+  const [y,m,d]=str.split("-").map(Number);
   return new Date(y,m-1,d);
 }
 
@@ -257,19 +238,22 @@ function getMacroGroup(carline){
 
   if(name.includes("suv")) return "SUV";
   if(name.includes("sw")) return "Station Wagon";
-  if(name.includes("cabrio")) return "Cabriolet";
-  if(name.includes("9 seats")||name.includes("9 posti")) return "People Mover";
   if(name.includes("van")) return "Commercial Van";
 
   return "Economy";
 }
 
 function initFilters(){
+  monthFilter.innerHTML="";
+  carlineFilter.innerHTML="";
+  providerFilter.innerHTML="";
+  macroFilter.innerHTML="";
+
   months2026.forEach((m,i)=>monthFilter.innerHTML+=`<option value="${i}">${m}</option>`);
   [...new Set(fleetData.map(f=>f.carline))].forEach(c=>carlineFilter.innerHTML+=`<option value="${c}">${c}</option>`);
   [...new Set(fleetData.map(f=>f.provider))].forEach(p=>providerFilter.innerHTML+=`<option value="${p}">${p}</option>`);
 
-  const macros=["Mini","Small","Economy","Large","SUV","Premium","Station Wagon","Cabriolet","People Mover","Commercial Van"];
+  const macros=["Mini","Small","Economy","Large","SUV","Premium","Station Wagon","Commercial Van"];
   macros.forEach(m=>macroFilter.innerHTML+=`<option value="${m}">${m}</option>`);
 
   document.querySelectorAll("select").forEach(s=>s.addEventListener("change",updateDashboard));
@@ -284,24 +268,20 @@ function resetFilters(){
   updateDashboard();
 }
 
-function isActiveInMonth(vehicle, monthIndex){
+function isActiveInMonth(vehicle,monthIndex){
 
-  const start = parseDate(vehicle.date_in);
-  const end   = vehicle.date_out
-    ? parseDate(vehicle.date_out)
-    : new Date(2026,11,31);
+  const start=parseDate(vehicle.date_in);
+  const end=vehicle.date_out?parseDate(vehicle.date_out):new Date(2026,11,31);
 
   if(!start) return false;
 
-  const monthStart = new Date(2026, monthIndex, 1);
-  const monthEnd   = new Date(2026, monthIndex+1, 0);
+  const monthStart=new Date(2026,monthIndex,1);
+  const monthEnd=new Date(2026,monthIndex+1,0);
 
-  // 🔹 Calcolo intersezione reale
-  const effectiveStart = start > monthStart ? start : monthStart;
-  const effectiveEnd   = end   < monthEnd   ? end   : monthEnd;
+  const effectiveStart=start>monthStart?start:monthStart;
+  const effectiveEnd=end<monthEnd?end:monthEnd;
 
-  // Se c'è almeno 1 giorno di sovrapposizione
-  return effectiveStart <= effectiveEnd;
+  return effectiveStart<=effectiveEnd;
 }
 
 function updateDashboard(){
@@ -314,30 +294,14 @@ function updateDashboard(){
   const yearStart=new Date(2026,0,1);
   const yearEnd=new Date(2026,11,31);
 
-  let enriched = fleetData
-  .map(f => ({ ...f, macro:getMacroGroup(f.carline) }))
-  .filter(f => {
+  let enriched=fleetData
+    .map(f=>({...f,macro:getMacroGroup(f.carline)}))
+    .filter(f=>{
+      const start=parseDate(f.date_in);
+      const end=f.date_out?parseDate(f.date_out):yearEnd;
+      return start && start<=yearEnd && end>=yearStart;
+    });
 
-    if(!f.date_in) return false;
-
-    const start = parseDate(f.date_in);
-    const end   = f.date_out
-      ? parseDate(f.date_out)
-      : new Date(2026,11,31);
-
-    if(!start || !end) return false;
-
-    // Intersezione con anno 2026
-    const effectiveStart = start > new Date(2026,0,1)
-      ? start
-      : new Date(2026,0,1);
-
-    const effectiveEnd = end < new Date(2026,11,31)
-      ? end
-      : new Date(2026,11,31);
-
-    return effectiveStart <= effectiveEnd;
-  });
   let filtered=enriched.filter(f=>{
     return (selectedCarline.length===0||selectedCarline.includes(f.carline))
       && (selectedProvider.length===0||selectedProvider.includes(f.provider))
@@ -391,21 +355,6 @@ function updateDashboard(){
       plugins:{legend:{display:false}},
       scales:{y:{beginAtZero:true}}
     }
-  });
-
-  const counts={};
-  filtered.forEach(f=>counts[f.carline]=(counts[f.carline]||0)+1);
-
-  carlineTable.innerHTML="";
-  Object.entries(counts)
-    .sort((a,b)=>b[1]-a[1])
-    .forEach(([carline,count])=>{
-      carlineTable.innerHTML+=`
-      <tr>
-        <td>${carline}</td>
-        <td>${count}</td>
-        <td>${getMacroGroup(carline)}</td>
-      </tr>`;
   });
 }
 
