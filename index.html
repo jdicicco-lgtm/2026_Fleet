@@ -209,14 +209,27 @@ document.getElementById("csvUpload").addEventListener("change",function(e){
 
 // CSV Parser
 function parseCSV(text){
-  const rows=text.trim().split("\n").map(r=>r.split(","));
-  const headers=rows[0].map(h=>h.trim());
 
-  return rows.slice(1).map(r=>{
-    let obj={};
-    headers.forEach((h,i)=>obj[h]=r[i]?.trim());
-    return obj;
-  });
+  // Supporta CSV Excel con ;
+  const rows = text.trim().split("\n").map(r => r.split(";"));
+  const headers = rows[0].map(h => h.trim());
+
+  return rows.slice(1).map(row => {
+
+    let obj = {};
+    headers.forEach((h,i) => {
+      obj[h] = row[i] ? row[i].trim() : "";
+    });
+
+    return {
+      provider: obj["provider"],
+      carline: obj["category"],
+      location: obj["Location"],
+      date_in: obj["Date In"],
+      date_out: obj["Date Out"]
+    };
+
+  }).filter(r => r.carline && r.date_in);
 }
 
 function parseDate(str){
