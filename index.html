@@ -6,14 +6,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-
 :root{
-  --bg:#f5f7fb;
+  --bg:#f4f6fb;
   --card:#ffffff;
   --text:#1f2937;
   --muted:#6b7280;
   --primary:#2563eb;
-  --shadow:0 8px 24px rgba(0,0,0,0.06);
+  --shadow:0 10px 30px rgba(0,0,0,0.06);
 }
 
 body{
@@ -38,7 +37,7 @@ h1{
 .filters{
   background:var(--card);
   padding:24px;
-  border-radius:16px;
+  border-radius:18px;
   box-shadow:var(--shadow);
   display:flex;
   flex-wrap:wrap;
@@ -47,7 +46,9 @@ h1{
 }
 
 .filters label{
-  font-size:13px;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
   color:var(--muted);
 }
 
@@ -56,7 +57,6 @@ select{
   padding:6px;
   border-radius:8px;
   border:1px solid #e5e7eb;
-  background:white;
 }
 
 button{
@@ -66,10 +66,7 @@ button{
   background:var(--primary);
   color:white;
   cursor:pointer;
-  font-weight:500;
 }
-
-button:hover{opacity:.9;}
 
 .kpi-grid{
   display:grid;
@@ -81,12 +78,14 @@ button:hover{opacity:.9;}
 .card{
   background:var(--card);
   padding:24px;
-  border-radius:16px;
+  border-radius:18px;
   box-shadow:var(--shadow);
 }
 
 .card-title{
-  font-size:13px;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
   color:var(--muted);
 }
 
@@ -96,38 +95,28 @@ button:hover{opacity:.9;}
   margin-top:8px;
 }
 
-.badge{
-  display:inline-block;
-  margin-top:8px;
-  font-size:11px;
-  padding:4px 8px;
-  border-radius:20px;
-  background:#eef2ff;
-  color:var(--primary);
-}
-
 .chart-wrapper{
   background:var(--card);
-  padding:30px 40px;
-  border-radius:20px;
+  padding:40px;
+  border-radius:22px;
   box-shadow:var(--shadow);
   margin-top:20px;
 }
 
 .chart-container{
-  max-width:800px;
+  max-width:850px;
   margin:auto;
 }
 
 canvas{
-  height:320px !important;
+  height:340px !important;
 }
 
 .table-wrapper{
   background:var(--card);
   margin-top:60px;
-  padding:30px 40px;
-  border-radius:20px;
+  padding:40px;
+  border-radius:22px;
   box-shadow:var(--shadow);
 }
 
@@ -137,13 +126,13 @@ table{
 }
 
 th,td{
-  padding:12px;
-  text-align:left;
+  padding:14px;
   font-size:14px;
+  text-align:left;
 }
 
 th{
-  font-size:12px;
+  font-size:11px;
   text-transform:uppercase;
   letter-spacing:.05em;
   color:var(--muted);
@@ -152,7 +141,6 @@ th{
 tr:not(:last-child){
   border-bottom:1px solid #f0f2f5;
 }
-
 </style>
 </head>
 
@@ -184,28 +172,22 @@ tr:not(:last-child){
 </div>
 
 <div class="kpi-grid">
-
   <div class="card">
     <div class="card-title" id="fleetTitle">Flotta Media 2026</div>
     <div class="card-value" id="totalFleet">0</div>
-    <div class="badge" id="fleetBadge">Vista Annuale</div>
   </div>
-
   <div class="card">
     <div class="card-title">Provider Attivi</div>
     <div class="card-value" id="totalProviders">0</div>
   </div>
-
   <div class="card">
     <div class="card-title">Carline Attive</div>
     <div class="card-value" id="totalCarline">0</div>
   </div>
-
   <div class="card">
     <div class="card-title">% Premium Fleet</div>
     <div class="card-value" id="premiumShare">0%</div>
   </div>
-
 </div>
 
 <div class="chart-wrapper">
@@ -215,7 +197,7 @@ tr:not(:last-child){
 </div>
 
 <div class="table-wrapper">
-  <h3 style="margin-bottom:25px;">Distribuzione Carline</h3>
+  <h3>Distribuzione Carline</h3>
   <table>
     <thead>
       <tr>
@@ -237,14 +219,15 @@ let chart;
 
 const months2026=["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
 
-// 🔹 TABELLA DI MAPPING MACRO GRUPPI
-const macroMap = {
-  "group a": "Mini",
-  "group b": "Small",
-  "group c": "Economy",
-  "group d": "Large",
-  "group e": "Premium",
-  "group f": "Premium"
+const macroMap={
+  "group a":"Mini",
+  "group b":"Small",
+  "group c":"Economy",
+  "group d":"Large",
+  "group e":"Premium",
+  "group f":"Premium",
+  "group j":"SUV",
+  "group m":"Commercial Van"
 };
 
 fetch('fleet.json')
@@ -255,67 +238,41 @@ fetch('fleet.json')
   updateDashboard();
 });
 
+function parseDate(dateString){
+  if(!dateString) return null;
+  const [y,m,d]=dateString.split("-").map(Number);
+  return new Date(y,m-1,d);
+}
+
 function getMacroGroup(carline){
-
   if(!carline) return "Economy";
+  const name=carline.toLowerCase();
 
-  const name = carline.toLowerCase();
+  const premiumBrands=["audi","bmw","mercedes","volvo","lexus","tesla","porsche","jaguar","land rover","alfa","ds"];
+  if(premiumBrands.some(b=>name.includes(b))) return "Premium";
 
-  // 🔹 PREMIUM (priorità assoluta)
-  const premiumBrands = [
-    "audi","bmw","mercedes","volvo",
-    "lexus","tesla","porsche",
-    "jaguar","land rover","alfa","ds"
-  ];
-
-  if(premiumBrands.some(b => name.includes(b))){
-    return "Premium";
+  for(const key in macroMap){
+    if(name.includes(key)) return macroMap[key];
   }
 
-  // 🔹 GROUP BASED MAPPING (molto più solido)
-
-  if(name.includes("group a")) return "Mini";
-  if(name.includes("group b")) return "Small";
-  if(name.includes("group c")) return "Economy";
-  if(name.includes("group d")) return "Large";
-  if(name.includes("group e")) return "Premium";
-
-  // 🔹 SUV
   if(name.includes("suv")) return "SUV";
-
-  // 🔹 STATION WAGON
   if(name.includes("sw")) return "Station Wagon";
-
-  // 🔹 PEOPLE MOVER
-  if(name.includes("9 posti")) return "People Mover";
-
-  // 🔹 COMMERCIAL
-  if(name.includes("van") || name.includes("transit") || name.includes("doblo"))
-    return "Commercial Van";
-
-  // 🔹 CABRIO
   if(name.includes("cabrio")) return "Cabriolet";
+  if(name.includes("9 seats")||name.includes("9 posti")) return "People Mover";
+  if(name.includes("van")) return "Commercial Van";
 
   return "Economy";
 }
 
 function initFilters(){
-
-  months2026.forEach((m,i)=>{
-    monthFilter.innerHTML+=`<option value="${i}">${m}</option>`;
-  });
-
-  [...new Set(fleetData.map(f=>f.carline))]
-    .forEach(c=>carlineFilter.innerHTML+=`<option value="${c}">${c}</option>`);
-
-  [...new Set(fleetData.map(f=>f.provider))]
-    .forEach(p=>providerFilter.innerHTML+=`<option value="${p}">${p}</option>`);
+  months2026.forEach((m,i)=>monthFilter.innerHTML+=`<option value="${i}">${m}</option>`);
+  [...new Set(fleetData.map(f=>f.carline))].forEach(c=>carlineFilter.innerHTML+=`<option value="${c}">${c}</option>`);
+  [...new Set(fleetData.map(f=>f.provider))].forEach(p=>providerFilter.innerHTML+=`<option value="${p}">${p}</option>`);
 
   const macros=["Mini","Small","Economy","Large","SUV","Premium","Station Wagon","Cabriolet","People Mover","Commercial Van"];
   macros.forEach(m=>macroFilter.innerHTML+=`<option value="${m}">${m}</option>`);
 
-  document.querySelectorAll("select")
-    .forEach(s=>s.addEventListener("change",updateDashboard));
+  document.querySelectorAll("select").forEach(s=>s.addEventListener("change",updateDashboard));
 }
 
 function getSelectedValues(id){
@@ -323,46 +280,20 @@ function getSelectedValues(id){
 }
 
 function resetFilters(){
-  document.querySelectorAll("select")
-    .forEach(s=>[...s.options].forEach(o=>o.selected=false));
+  document.querySelectorAll("select").forEach(s=>[...s.options].forEach(o=>o.selected=false));
   updateDashboard();
 }
 
-function parseDate(dateString){
-  if(!dateString) return null;
-  const [y,m,d] = dateString.split("-").map(Number);
-  return new Date(y, m-1, d);
+function isActiveInMonth(vehicle,monthIndex){
+  const start=parseDate(vehicle.date_in);
+  const end=vehicle.date_out?parseDate(vehicle.date_out):new Date(2026,11,31);
+
+  const monthStart=new Date(2026,monthIndex,1);
+  const monthEnd=new Date(2026,monthIndex+1,0);
+
+  return start<=monthEnd && end>=monthStart;
 }
 
-  const parts = dateString.split("-");
-  return new Date(
-    Number(parts[0]),
-    Number(parts[1]) - 1,
-    Number(parts[2])
-  );
-}
-
-function isActiveInMonth(vehicle, monthIndex){
-
-  if(!vehicle.date_in) return false;
-
-  const start = parseDate(vehicle.date_in);
-  const end = vehicle.date_out 
-    ? parseDate(vehicle.date_out)
-    : new Date(2026,11,31);
-
-  const yearStart = new Date(2026,0,1);
-  const yearEnd   = new Date(2026,11,31);
-
-  // 🔹 fuori dal 2026 → escludi
-  if(start > yearEnd) return false;
-  if(end < yearStart) return false;
-
-  const monthStart = new Date(2026, monthIndex, 1);
-  const monthEnd   = new Date(2026, monthIndex+1, 0);
-
-  return start <= monthEnd && end >= monthStart;
-}
 function updateDashboard(){
 
   const selectedMonths=getSelectedValues("monthFilter").map(Number);
@@ -370,64 +301,62 @@ function updateDashboard(){
   const selectedProvider=getSelectedValues("providerFilter");
   const selectedMacro=getSelectedValues("macroFilter");
 
-  const yearStart = new Date(2026,0,1);
-const yearEnd   = new Date(2026,11,31);
+  const yearStart=new Date(2026,0,1);
+  const yearEnd=new Date(2026,11,31);
 
-let enriched = fleetData
-  .map(f => ({ ...f, macro:getMacroGroup(f.carline) }))
-  .filter(f => {
+  let enriched=fleetData
+    .map(f=>({...f,macro:getMacroGroup(f.carline)}))
+    .filter(f=>{
+      if(!f.date_in) return false;
+      const start=parseDate(f.date_in);
+      const end=f.date_out?parseDate(f.date_out):yearEnd;
+      return start<=yearEnd && end>=yearStart;
+    });
 
-    if(!f.date_in) return false;
-
-    const start = parseDate(f.date_in);
-    const end   = f.date_out ? parseDate(f.date_out) : yearEnd;
-
-    return start <= yearEnd && end >= yearStart;
-  });
   let filtered=enriched.filter(f=>{
     return (selectedCarline.length===0||selectedCarline.includes(f.carline))
       && (selectedProvider.length===0||selectedProvider.includes(f.provider))
       && (selectedMacro.length===0||selectedMacro.includes(f.macro));
   });
 
-  let monthlyCounts=months2026.map((_,i)=>
-    filtered.filter(f=>isActiveInMonth(f,i)).length
-  );
+  let monthlyCounts=months2026.map((_,i)=>filtered.filter(f=>isActiveInMonth(f,i)).length);
 
-  const noFiltersApplied=
-    selectedMonths.length===0 &&
-    selectedCarline.length===0 &&
-    selectedProvider.length===0 &&
-    selectedMacro.length===0;
+  let labels=months2026;
+  let dataPoints=monthlyCounts;
 
-  let yearlyAverage=(monthlyCounts.reduce((a,b)=>a+b,0)/12).toFixed(1);
+  if(selectedMonths.length>0){
+    labels=selectedMonths.map(i=>months2026[i]);
+    dataPoints=selectedMonths.map(i=>monthlyCounts[i]);
+  }
 
-  if(noFiltersApplied){
+  const noFilters=selectedMonths.length===0 && selectedCarline.length===0 && selectedProvider.length===0 && selectedMacro.length===0;
+
+  const yearlyAverage=(monthlyCounts.reduce((a,b)=>a+b,0)/12).toFixed(1);
+
+  if(noFilters){
     totalFleet.innerText=yearlyAverage;
     fleetTitle.innerText="Flotta Media 2026";
-    fleetBadge.innerText="Vista Annuale";
   }else{
     totalFleet.innerText=filtered.length;
     fleetTitle.innerText="Flotta Filtrata";
-    fleetBadge.innerText="Vista con Filtri";
   }
 
   totalProviders.innerText=new Set(filtered.map(f=>f.provider)).size;
   totalCarline.innerText=new Set(filtered.map(f=>f.carline)).size;
 
-  let premiumCount=filtered.filter(f=>f.macro==="Premium").length;
-  premiumShare.innerText=filtered.length>0?
-    ((premiumCount/filtered.length)*100).toFixed(1)+"%"
-    :"0%";
+  const premiumCount=filtered.filter(f=>f.macro==="Premium").length;
+  premiumShare.innerText=filtered.length>0?((premiumCount/filtered.length)*100).toFixed(1)+"%":"0%";
 
   if(chart) chart.destroy();
 
-  chart=new Chart(document.getElementById("fleetChart"),{
+  chart=new Chart(fleetChart,{
     type:'line',
     data:{
-      labels:months2026,
+      labels:labels,
       datasets:[{
-        data:monthlyCounts,
+        data:dataPoints,
+        borderColor:"#2563eb",
+        backgroundColor:"rgba(37,99,235,0.15)",
         borderWidth:3,
         tension:.35,
         fill:true
