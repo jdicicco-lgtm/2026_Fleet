@@ -237,6 +237,16 @@ let chart;
 
 const months2026=["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
 
+// 🔹 TABELLA DI MAPPING MACRO GRUPPI
+const macroMap = {
+  "group a": "Mini",
+  "group b": "Small",
+  "group c": "Economy",
+  "group d": "Large",
+  "group e": "Premium",
+  "group f": "Premium"
+};
+
 fetch('fleet.json')
 .then(res=>res.json())
 .then(data=>{
@@ -247,18 +257,45 @@ fetch('fleet.json')
 
 function getMacroGroup(carline){
 
-  const name=(carline||"").toLowerCase();
+  if(!carline) return "Economy";
 
-  const premiumBrands=["audi","bmw","mercedes","volvo","lexus","tesla","porsche","jaguar","land rover","alfa","ds"];
-  if(premiumBrands.some(b=>name.includes(b))) return "Premium";
-  if(name.includes("van")||name.includes("transit")||name.includes("doblo")) return "Commercial Van";
-  if(name.includes("9 posti")||name.includes("people")) return "People Mover";
+  const name = carline.toLowerCase();
+
+  // 🔹 PREMIUM (priorità assoluta)
+  const premiumBrands = [
+    "audi","bmw","mercedes","volvo",
+    "lexus","tesla","porsche",
+    "jaguar","land rover","alfa","ds"
+  ];
+
+  if(premiumBrands.some(b => name.includes(b))){
+    return "Premium";
+  }
+
+  // 🔹 GROUP BASED MAPPING (molto più solido)
+
+  if(name.includes("group a")) return "Mini";
+  if(name.includes("group b")) return "Small";
+  if(name.includes("group c")) return "Economy";
+  if(name.includes("group d")) return "Large";
+  if(name.includes("group e")) return "Premium";
+
+  // 🔹 SUV
+  if(name.includes("suv")) return "SUV";
+
+  // 🔹 STATION WAGON
+  if(name.includes("sw")) return "Station Wagon";
+
+  // 🔹 PEOPLE MOVER
+  if(name.includes("9 posti")) return "People Mover";
+
+  // 🔹 COMMERCIAL
+  if(name.includes("van") || name.includes("transit") || name.includes("doblo"))
+    return "Commercial Van";
+
+  // 🔹 CABRIO
   if(name.includes("cabrio")) return "Cabriolet";
-  if(name.includes("sw")||name.includes("station")) return "Station Wagon";
-  if(name.includes("suv")||name.includes("qashqai")||name.includes("tucson")) return "SUV";
-  if(name.includes("passat")||name.includes("superb")) return "Large";
-  if(name.includes("clio")||name.includes("208")||name.includes("polo")) return "Small";
-  if(name.includes("panda")||name.includes("500")||name.includes("mini")) return "Mini";
+
   return "Economy";
 }
 
